@@ -1,6 +1,6 @@
-# Autonomous Being Framework
+# Pippin - Autonomous Being Framework
 
-Welcome to the Autonomous Being Framework—a flexible, open-source platform to create a digital AI “being” that:
+Welcome to Pippin — a flexible, open-source Autonomous Being Framework to create a digital AI “being” that:
 
 - Learns about your goals/objectives and your character’s persona.
 - Connects to various tools or APIs (via API keys or OAuth flows through Composio) to perform tasks.
@@ -155,7 +155,7 @@ pip install -r requirements.txt
 
 You can pick one of these approaches:
 
-- **CLI:** `python tools/onboard.py`
+- **CLI:** `python my_digital_being/tools/onboard.py`
 - **Web UI:** `python -m server.server` then open `http://localhost:8000` in your browser and follow the onboarding prompts.
 
 Either way, you’ll be guided through:
@@ -167,7 +167,7 @@ Either way, you’ll be guided through:
 
 ### 4. Launch the Agent
 
-- **CLI:** `python -m framework.main`
+- **CLI:** `python -m my_digital_being/framework.main`
 - **Web UI:** Once onboarding is complete, a Start button appears—click to run the main loop.
 
 ---
@@ -272,7 +272,7 @@ All you need is to enable the correct skill(s) in `skills_config.json` and optio
 ### Re-running the Onboarding Wizard
 
 ```bash
-python tools/onboard.py
+python my_digital_being/tools/onboard.py
 ```
 
 (It will re-check your config, letting you update or skip certain steps.)

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 @activity(
     name="analyze_new_commits",
     energy_cost=0.4,
-    cooldown=100,  # e.g. 100 seconds for testing; update as needed (e.g. 86400 for daily)
+    cooldown=1000,  # e.g. 100 seconds for testing; update as needed (e.g. 86400 for daily)
     required_skills=['github_repo_commits']
 )
 class AnalyzeNewCommitsActivity(ActivityBase):
@@ -26,10 +26,10 @@ class AnalyzeNewCommitsActivity(ActivityBase):
     def __init__(self):
         super().__init__()
         self.composio_action = "GITHUB_LIST_COMMITS"
-        self.github_owner = "yoheinakajima"
-        self.github_repo = "pippin-py"
+        self.github_owner = "yoheinakajima" #example githubt username
+        self.github_repo = "pippin" #example repo
         self.github_branch = "main"
-        self.lookback_hours = 144  # or 24, etc.
+        self.lookback_hours = 144  # hours to look back
 
     async def execute(self, shared_data) -> ActivityResult:
         try:
