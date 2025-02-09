@@ -23,6 +23,9 @@ let activityColorMap = new Map();
 let currentEditingActivity = null;
 let isRawCodeMode = false;
 
+// Chat functionality
+let isLoadingChat = false;
+
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, connecting WebSocket...');
   connect();
@@ -34,6 +37,22 @@ document.addEventListener('DOMContentLoaded', () => {
       showTab(tabName);
     });
   });
+
+  // Setup chat handlers
+  const chatInput = document.getElementById('chat-input');
+  const sendButton = document.getElementById('send-chat');
+
+  chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  });
+
+  sendButton.addEventListener('click', sendChatMessage);
+
+  // Load chat history when switching to chat tab
+  document.querySelector('[data-tab="chat"]').addEventListener('click', loadChatHistory);
 });
 
 function showTab(tabName) {
@@ -1520,5 +1539,70 @@ function displayAllSkills(skills) {
   });
 
   container.innerHTML = html;
+}
+
+async function sendChatMessage() {
+  if (isLoadingChat) return;
+
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message) return;
+
+  isLoadingChat = true;
+  input.disabled = true;
+  document.getElementById('send-chat').disabled = true;
+
+  // Add user message to UI immediately
+  addChatMessage(message, 'user');
+  input.value = '';
+
+  try {
+    const response = await sendCommand('send_chat_message', { message });
+    if (response.success) {
+      addChatMessage(response.chat_response, 'bot');
+    } else {
+      addChatMessage('Sorry, I encountered an error processing your message.', 'bot');
+      console.error('Chat error:', response.error);
+    }
+  } catch (error) {
+    console.error('Failed to send chat message:', error);
+    addChatMessage('Sorry, there was an error sending your message.', 'bot');
+  } finally {
+    isLoadingChat = false;
+    input.disabled = false;
+    document.getElementById('send-chat').disabled = false;
+  }
+}
+
+function addChatMessage(message, sender) {
+  const messagesDiv = document.getElementById('chat-messages');
+  const messageElement = document.createElement('div');
+  messageElement.classList.add('chat-message');
+  messageElement.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+  messageElement.textContent = message;
+  messagesDiv.appendChild(messageElement);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+async function loadChatHistory() {
+  try {
+    const response = await sendCommand('get_chat_history');
+    if (response.success && response.chat_history) {
+      const messagesDiv = document.getElementById('chat-messages');
+      messagesDiv.innerHTML = '';
+      
+      response.chat_history.forEach(entry => {
+        const data = entry.data || {};
+        if (data.sender && data.message) {
+          addChatMessage(
+            data.message,
+            data.sender.toLowerCase().includes('user') ? 'user' : 'bot'
+          );
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Failed to load chat history:', error);
+  }
 }
 

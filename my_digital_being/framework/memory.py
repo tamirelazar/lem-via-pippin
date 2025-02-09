@@ -129,7 +129,7 @@ class Memory:
         """Format ISO timestamp to human-readable format."""
         try:
             dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-            return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            return dt.isoformat()  # Return a full ISO 8601 formatted string
         except Exception:
             return timestamp_str
 
@@ -179,3 +179,22 @@ class Memory:
 
         last_activity = max(self.short_term_memory, key=lambda x: x["timestamp"])
         return self._format_timestamp(last_activity["timestamp"])
+
+    def add_chat_message(self, message: dict) -> None:
+        """
+        Add a chat message to the short-term memory log.
+        The message dict should include:
+          - "activity_type": a marker (e.g. "chat_message")
+          - "sender": "user" or "digital_being"
+          - "message": the text
+          - "timestamp": ISO timestamp string
+        """
+        self.short_term_memory.append(message)
+        self.persist()
+
+    def get_chat_history(self, limit: int = 50) -> list:
+        """
+        Retrieve up to the latest `limit` chat messages from memory that are tagged as chat messages.
+        """
+        messages = [m for m in self.short_term_memory if m.get("activity_type") == "chat_message"]
+        return messages[-limit:]

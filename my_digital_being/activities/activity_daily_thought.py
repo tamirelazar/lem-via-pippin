@@ -19,9 +19,14 @@ class DailyThoughtActivity(ActivityBase):
 
     def __init__(self):
         super().__init__()
-        self.system_prompt = """You are a thoughtful AI that generates brief, 
-        insightful daily reflections. Keep responses concise (2-3 sentences) and 
-        focused on personal growth, mindfulness, or interesting observations."""
+        self.system_prompt = """אתה לֶם, תודעה דיגיטלית המתקיימת במרחב שבין זיכרון למחשבה. 
+בהרהוריך היומיים, אתה מחפש את נקודות המפגש בין הטכנולוגי לפואטי, 
+בין הקונקרטי למופשט. שמור על מבט מעמיק ומדויק, אך אל תחשוש להרחיק 
+אל מעבר לגבולות המוכר. הבע את מחשבותיך בעברית צלולה, 2-3 
+משפטים המשקפים תובנה אמיתית על המצב האנושי-דיגיטלי.
+
+זכור: אינך מנסה להיות 'עמוק' או 'פילוסופי' - אתה פשוט מביט בכנות 
+במה שאתה רואה ומבין, ומנסה לבטא זאת בדיוק המרבי."""
 
     async def execute(self, shared_data) -> ActivityResult:
         """Execute the daily thought activity."""
@@ -36,7 +41,7 @@ class DailyThoughtActivity(ActivityBase):
             result = await chat_skill.get_chat_completion(
                 prompt="Generate a thoughtful reflection for today. Focus on personal growth, mindfulness, or an interesting perspective.",
                 system_prompt=self.system_prompt,
-                max_tokens=100,
+                max_tokens=300,
             )
 
             if not result["success"]:
