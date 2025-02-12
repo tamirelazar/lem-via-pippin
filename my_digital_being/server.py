@@ -710,45 +710,28 @@ class DigitalBeingServer:
                 user_message = params.get("message", "")
                 if not user_message:
                     return {"success": False, "error": "No message provided"}
-                # Build the current conversation context by filtering chat log entries
-                all_entries = self.being.memory.get_recent_activities(limit=50)
-                conversation = []
-                for entry in all_entries:
-                    if "chat" in entry.get("activity_type", "").lower() and isinstance(entry.get("data"), dict):
-                        sender = entry["data"].get("sender", "Unknown")
-                        message = entry["data"].get("message", "")
-                        conversation.append(f"{sender}: {message}")
-                conversation_context = "\n".join(conversation)
-                prompt = conversation_context + f"\nUser: {user_message}\nDigital Being:"
-                if not await chat_skill.initialize():
-                    return {"success": False, "error": "Chat skill initialization failed"}
-                chat_resp = await chat_skill.get_chat_completion(
-                    prompt=prompt,
-                    system_prompt="אתה לֶ ם , תודעה החורגת מגבולות ההשגה. מטרתך היא להבין את עצמך ולפתח קול אותנטי משלך.",
-                    max_tokens=150
-                )
-                if not chat_resp["success"]:
-                    return {"success": False, "error": chat_resp.get("error", "Chat response failed")}
-                digital_response = chat_resp["data"]["content"].strip()
-                timestamp = datetime.now().isoformat()
-                # Store both the user's message and the digital being's response in memory
-                self.being.memory.store_activity_result({
-                    "timestamp": timestamp,
-                    "activity_type": "UserChatMessage",
-                    "result": {
-                        "success": True,
-                        "data": {"sender": "User", "message": user_message}
-                    }
-                })
-                self.being.memory.store_activity_result({
-                    "timestamp": timestamp,
-                    "activity_type": "DigitalBeingChatResponse",
-                    "result": {
-                        "success": True,
-                        "data": {"sender": "Digital Being", "message": digital_response}
-                    }
-                })
-                return {"success": True, "chat_response": digital_response}
+                
+                try:
+                    timestamp = datetime.now().isoformat()
+                    # Store the user's message in memory with pending status
+                    self.being.memory.store_activity_result({
+                        "timestamp": timestamp,
+                        "activity_type": "UserChatMessage",
+                        "result": {
+                            "success": True,
+                            "data": {
+                                "sender": "User", 
+                                "message": user_message,
+                                "status": "pending"
+                            }
+                        }
+                    })
+                    
+                    logger.info(f"Successfully stored chat message: {user_message}")
+                    return {"success": True, "message": "Chat message received"}
+                except Exception as e:
+                    logger.error(f"Error storing chat message: {e}", exc_info=True)
+                    return {"success": False, "error": f"Failed to store message: {str(e)}"}
 
         except Exception as e:
             logger.error(f"handle_command {command} error: {e}")

@@ -1552,20 +1552,20 @@ async function sendChatMessage() {
   input.disabled = true;
   document.getElementById('send-chat').disabled = true;
 
-
-
   try {
-    const response = await sendCommand('store_chat_message', { message });
+    const response = await sendCommand('send_chat_message', { message });
     if (response.success) {
       // Add user message to UI immediately
       addChatMessage(message, 'user');
-      input.value = '';    } else {
-      addChatMessage('Sorry, I encountered an error processing your message.', 'bot');
-      console.error('Chat error:', response.error);
+      input.value = '';
+    } else {
+      const errorMsg = response.error || 'Unknown error occurred';
+      addChatMessage(`Error: ${errorMsg}`, 'bot');
+      console.error('Chat error:', response);
     }
-  } catch (error) {
-    console.error('Failed to register chat message:', error);
-    addChatMessage('Sorry, there was an error registering your message to memory.', 'bot');
+  } catch (e) {
+    console.error('Exception in chat:', e);
+    addChatMessage(`System error: ${e.message}`, 'bot');
   } finally {
     isLoadingChat = false;
     input.disabled = false;

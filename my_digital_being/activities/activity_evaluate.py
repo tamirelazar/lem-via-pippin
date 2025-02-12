@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
     name="EvaluateActivity",
     energy_cost=0.3,
     cooldown=86400,  # example: 1 day
-    required_skills=["openai_chat"],
+    required_skills=["default_llm_skill"],
 )
 class EvaluateActivity(ActivityBase):
     """
@@ -34,7 +34,7 @@ class EvaluateActivity(ActivityBase):
 
             if not await chat_skill.initialize():
                 return ActivityResult(
-                    success=False, error="Failed to initialize openai_chat skill"
+                    success=False, error="Failed to initialize default_llm_skill"
                 )
 
             # Possibly fetch the last created/updated code from memory
