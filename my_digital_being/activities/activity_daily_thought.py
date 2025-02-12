@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
     name="daily_thought",
     energy_cost=0.4,
     cooldown=1800,  # 30 minutes
-    required_skills=["openai_chat"],
+    required_skills=["default_llm_skill"],
 )
 class DailyThoughtActivity(ActivityBase):
     """Generates insightful daily thoughts using OpenAI."""

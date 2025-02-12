@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
     name="AnalyzeDailyActivity",
     energy_cost=0.3,
     cooldown=86400,  # 24 hours
-    required_skills=["openai_chat"],
+    required_skills=["default_llm_skill"],
 )
 class AnalyzeDailyActivity(ActivityBase):
     """

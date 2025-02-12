@@ -592,7 +592,7 @@ class DigitalBeingServer:
                   {
                     "lite_llm": {
                       "enabled": true,
-                      "model_name": "openai/gpt-4o",
+                      "model_name": "anthropic/claude-3-5-haiku-20240620",
                       "required_api_keys": ["LITELLM"],
                       "provided_api_key": "sk-1234abcd..."
                     },
