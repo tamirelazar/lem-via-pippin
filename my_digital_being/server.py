@@ -346,6 +346,29 @@ class DigitalBeingServer:
             elif command == "start_loop":
                 self.running = True
                 return {"success": True, "message": "Core loop started."}
+            elif command == "run_activity":
+                activity_key = params.get("activity_key")
+                if not activity_key:
+                    return {"success": False, "error": "Missing activity_key parameter"}
+                
+                try:
+                    # Get the activity class from the activity selector
+                    activity_class = self.being.activity_selector.get_activity_class(activity_key)
+                    if not activity_class:
+                        return {"success": False, "error": f"Activity '{activity_key}' not found"}
+                    
+                    # Create an instance and execute it
+                    activity = activity_class()
+                    result = await self.being.execute_activity(activity)
+                    
+                    if result and result.success:
+                        return {"success": True, "message": f"Activity '{activity_key}' executed successfully"}
+                    else:
+                        error_msg = result.error if result else "Unknown error"
+                        return {"success": False, "error": f"Activity execution failed: {error_msg}"}
+                except Exception as e:
+                    logger.error(f"Error running activity {activity_key}: {e}")
+                    return {"success": False, "error": str(e)}
 
             elif command == "initiate_oauth":
                 app_name = params.get("app_name")
@@ -592,7 +615,7 @@ class DigitalBeingServer:
                   {
                     "lite_llm": {
                       "enabled": true,
-                      "model_name": "anthropic/claude-3-5-haiku-20240620",
+                      "model_name": "anthropic/claude-3-5-haiku-20241022",
                       "required_api_keys": ["LITELLM"],
                       "provided_api_key": "sk-1234abcd..."
                     },
@@ -700,10 +723,9 @@ class DigitalBeingServer:
                     return {"success": False, "error": str(e)}
 
             elif command == "get_chat_history":
-                # Retrieve the subset of memory entries relating to chat
-                all_entries = self.being.memory.get_recent_activities(limit=50)
-                chat_entries = [entry for entry in all_entries if "chat" in entry.get("activity_type", "").lower()]
-                return {"success": True, "chat_history": chat_entries}
+                # Use the dedicated chat history method from memory
+                chat_history = self.being.memory.get_chat_history(limit=50)
+                return {"success": True, "chat_history": chat_history}
 
             elif command == "send_chat_message":
                 from datetime import datetime
@@ -732,6 +754,25 @@ class DigitalBeingServer:
                 except Exception as e:
                     logger.error(f"Error storing chat message: {e}", exc_info=True)
                     return {"success": False, "error": f"Failed to store message: {str(e)}"}
+
+            elif command == "save_activity_constraints":
+                constraints_data = params.get("constraints")
+                if not constraints_data:
+                    return {"success": False, "message": "Missing 'constraints' parameter."}
+                
+                config_path = Path(self.being.config_path) / "activity_constraints.json"
+                
+                try:
+                    with open(config_path, "w", encoding="utf-8") as f:
+                        json.dump(constraints_data, f, indent=2)
+                except Exception as e:
+                    logger.error(f"Failed to write activity constraints: {e}")
+                    return {"success": False, "message": "Failed to update activity constraints."}
+                
+                # Update in-memory configuration as well
+                self.being.configs["activity_constraints"] = constraints_data
+                logger.info("Activity constraints updated successfully.")
+                return {"success": True, "message": "Activity constraints updated successfully."}
 
         except Exception as e:
             logger.error(f"handle_command {command} error: {e}")

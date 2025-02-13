@@ -26,6 +26,38 @@ let isRawCodeMode = false;
 // Chat functionality
 let isLoadingChat = false;
 
+// Add CSS styles at the top of the file
+const style = document.createElement('style');
+style.textContent = `
+  .chat-message {
+    padding: 8px 12px;
+    margin: 4px 0;
+    border-radius: 8px;
+    max-width: 80%;
+    word-wrap: break-word;
+  }
+  
+  .user-message {
+    background-color: var(--primary-color);
+    color: white;
+    margin-left: auto;
+  }
+  
+  .bot-message {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    margin-right: auto;
+  }
+  
+  .pending-message {
+    background-color: var(--warning-color);
+    opacity: 0.8;
+    color: var(--text-primary);
+    margin-left: auto;
+  }
+`;
+document.head.appendChild(style);
+
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, connecting WebSocket...');
   connect();
@@ -52,7 +84,16 @@ document.addEventListener('DOMContentLoaded', () => {
   sendButton.addEventListener('click', sendChatMessage);
 
   // Load chat history when switching to chat tab
-  document.querySelector('[data-tab="chat"]').addEventListener('click', loadChatHistory);
+  document.querySelector('[data-tab="chat"]').addEventListener('click', () => {
+    showTab('chat');
+    loadChatHistory();
+  });
+
+  // Load chat history on initial page load if we're on the chat tab
+  const currentTab = document.querySelector('.tab-content.active');
+  if (currentTab && currentTab.id === 'chat-tab') {
+    loadChatHistory();
+  }
 });
 
 function showTab(tabName) {
@@ -167,12 +208,25 @@ function connect() {
             displayAllSkills(data.response.skills);
             break;
 
+          case 'chat_response':
+            if (data.response.success && data.response.data) {
+              addChatMessage(data.response.data.chat_response, 'bot');
+            }
+            break;
+
           default:
             console.warn('Unrecognized command response:', cmd);
         }
       } else if (data.type === 'state_update') {
         console.log('State update:', data.data);
         updateRunningIndicator(data.data);
+      } else if (data.type === 'chat_message') {
+        // Handle real-time chat messages
+        const messageData = data.data || {};
+        if (messageData.sender && messageData.message) {
+          const isUser = messageData.sender.toLowerCase().includes('user');
+          addChatMessage(messageData.message, isUser ? 'user' : 'bot');
+        }
       }
     } catch (e) {
       console.error('Error processing message:', e);
@@ -405,10 +459,32 @@ function displayActivityConfigs(data) {
           Required Skills: ${(cfg.required_skills || []).join(', ')}<br>
           Last Execution: ${cfg.last_execution ? new Date(cfg.last_execution).toLocaleString() : 'Never'}
         </span>
-        <button class="btn secondary" onclick="editActivity('${k}')">Edit</button>
+        <div class="button-group">
+          <button class="btn secondary" onclick="editActivity('${k}')">Edit</button>
+          <button class="btn primary" onclick="runActivity('${k}')">Run Activity</button>
+        </div>
       </div>
     `;
   });
+}
+
+// Function to run an activity manually
+async function runActivity(activityKey) {
+  try {
+    const response = await sendCommand('run_activity', { activity_key: activityKey });
+    if (response.success) {
+      alert('Activity started successfully');
+      // Reload history to show the new activity
+      reloadHistory();
+      // Also refresh the activity configs to update last execution time
+      getActivities();
+    } else {
+      alert(`Failed to run activity: ${response.error}`);
+    }
+  } catch (e) {
+    console.error('Error running activity:', e);
+    alert('Failed to run activity: ' + e);
+  }
 }
 
 /*******************************************************
@@ -751,6 +827,12 @@ function displayActivityHistory(data) {
   const checkboxesDiv = document.getElementById('activityCheckboxes');
 
   if (data.activities && data.activities.length) {
+    // Reset activityData if this is a fresh load (offset 0)
+    if (currentOffset === 0) {
+      activityData = [];
+      activityTypes.clear();
+    }
+    
     // Append to existing activityData
     activityData = activityData.concat(data.activities);
     data.activities.forEach(a => activityTypes.add(a.activity_type));
@@ -789,6 +871,11 @@ function displayActivityHistory(data) {
       `;
     }).join('');
 
+    // If this is a fresh load, clear the entries div first
+    if (currentOffset === 0) {
+      entriesDiv.innerHTML = '';
+    }
+    
     // Append new activities to the existing entries
     entriesDiv.insertAdjacentHTML('beforeend', newEntriesHTML);
 
@@ -1541,6 +1628,58 @@ function displayAllSkills(skills) {
   container.innerHTML = html;
 }
 
+async function loadChatHistory() {
+  try {
+    const response = await sendCommand('get_chat_history');
+    if (response.success && response.chat_history) {
+      const messagesDiv = document.getElementById('chat-messages');
+      messagesDiv.innerHTML = ''; // Clear existing messages
+      
+      // Sort messages by timestamp to ensure chronological order
+      const sortedMessages = response.chat_history.sort((a, b) => {
+        return new Date(a.timestamp) - new Date(b.timestamp);
+      });
+      
+      sortedMessages.forEach(entry => {
+        const data = entry.data || {};
+        if (data.sender && data.message) {
+          const isUser = data.sender.toLowerCase().includes('user');
+          const messageType = isUser ? 'user' : 'bot';
+          addChatMessage(data.message, messageType);
+        }
+      });
+      
+      // Scroll to bottom after loading history
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+  } catch (error) {
+    console.error('Failed to load chat history:', error);
+  }
+}
+
+function addChatMessage(message, type) {
+  const messagesDiv = document.getElementById('chat-messages');
+  const messageElement = document.createElement('div');
+  messageElement.classList.add('chat-message');
+  
+  // Add appropriate class based on message type
+  switch(type) {
+    case 'user':
+      messageElement.classList.add('user-message');
+      break;
+    case 'bot':
+      messageElement.classList.add('bot-message');
+      break;
+  }
+  
+  // Create a text node to properly escape HTML content
+  const textNode = document.createTextNode(message);
+  messageElement.appendChild(textNode);
+  
+  messagesDiv.appendChild(messageElement);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
 async function sendChatMessage() {
   if (isLoadingChat) return;
 
@@ -1553,12 +1692,12 @@ async function sendChatMessage() {
   document.getElementById('send-chat').disabled = true;
 
   try {
+    // Add user message to UI immediately
+    addChatMessage(message, 'user');
+    input.value = '';
+
     const response = await sendCommand('send_chat_message', { message });
-    if (response.success) {
-      // Add user message to UI immediately
-      addChatMessage(message, 'user');
-      input.value = '';
-    } else {
+    if (!response.success) {
       const errorMsg = response.error || 'Unknown error occurred';
       addChatMessage(`Error: ${errorMsg}`, 'bot');
       console.error('Chat error:', response);
@@ -1570,38 +1709,6 @@ async function sendChatMessage() {
     isLoadingChat = false;
     input.disabled = false;
     document.getElementById('send-chat').disabled = false;
-  }
-}
-
-function addChatMessage(message, sender) {
-  const messagesDiv = document.getElementById('chat-messages');
-  const messageElement = document.createElement('div');
-  messageElement.classList.add('chat-message');
-  messageElement.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
-  messageElement.textContent = message;
-  messagesDiv.appendChild(messageElement);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}
-
-async function loadChatHistory() {
-  try {
-    const response = await sendCommand('get_chat_history');
-    if (response.success && response.chat_history) {
-      const messagesDiv = document.getElementById('chat-messages');
-      messagesDiv.innerHTML = '';
-      
-      response.chat_history.forEach(entry => {
-        const data = entry.data || {};
-        if (data.sender && data.message) {
-          addChatMessage(
-            data.message,
-            data.sender.toLowerCase().includes('user') ? 'user' : 'bot'
-          );
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Failed to load chat history:', error);
   }
 }
 

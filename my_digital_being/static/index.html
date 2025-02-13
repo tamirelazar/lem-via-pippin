@@ -327,12 +327,21 @@
       background: var(--section-bg);
       color: var(--text-primary);
       border: 1px solid rgba(255,255,255,0.2);
-      margin-left: 1rem;
     }
     .btn.secondary:hover {
       box-shadow: none;
       border-color: var(--primary-color);
       color: var(--primary-color);
+    }
+
+    /* Add button group styling */
+    .button-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .button-group .btn {
+      margin: 0;
     }
 
     .configure-key-btn {

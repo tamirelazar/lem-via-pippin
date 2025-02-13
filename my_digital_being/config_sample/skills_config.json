@@ -25,7 +25,7 @@
   "default_llm_skill": "lite_llm",
   "lite_llm": {
     "enabled": true,
-    "model_name": "anthropic/claude-3-5-haiku-20240620",
+    "model_name": "anthropic/claude-3-5-haiku-20241022",
     "required_api_keys": [],
     "api_key_mapping": {}
   }

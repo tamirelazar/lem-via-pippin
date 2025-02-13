@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, Any
+from datetime import datetime, timedelta
 from framework.activity_decorator import activity, ActivityBase, ActivityResult
 from framework.main import DigitalBeing
 
@@ -7,53 +8,63 @@ logger = logging.getLogger(__name__)
 
 @activity(
     name="CheckPendingMessages",
-    energy_cost=0.1,
+    energy_cost=0.3,
     cooldown=2,  # Check every 2 seconds
     required_skills=[]  # No specific skills required for checking
 )
 class CheckPendingMessagesActivity(ActivityBase):
-    """Activity that checks for pending chat messages and adjusts priority of ReplyToChatActivity."""
+    """Activity that monitors chat activity and manages the chat response system."""
     
     def __init__(self):
         super().__init__()
 
     async def execute(self, shared_data) -> ActivityResult:
         try:
-            logger.info("Checking for pending messages")
+            logger.info("Checking chat activity status")
             
-            # Initialize the being and get recent activities
+            # Initialize the being
             being = DigitalBeing()
             being.initialize()
-            logger.info(f"Memory contents: {being.memory.short_term_memory}")  # Log raw memory
             
-            all_entries = being.memory.get_recent_activities(limit=20)
-            logger.info(f"Found {len(all_entries)} recent entries to check")
-            logger.info(f"Entries after get_recent_activities: {all_entries}")  # Log transformed entries
+            # Get recent chat history
+            chat_history = being.memory.get_chat_history(limit=5)  # Just check last few messages
             
-            # Debug log the entries
-            for entry in all_entries:
-                logger.info(f"Entry: {entry}")
+            if not chat_history:
+                logger.info("No chat history found")
+                being.configs["activity_constraints"]["activities_config"]["ReplyToChatActivity"]["enabled"] = False
+                return ActivityResult.success_result({"active": False, "reason": "no_history"})
             
-            # Look for pending messages
-            has_pending = False
-            for entry in reversed(all_entries):
-                if (entry["activity_type"] == "UserChatMessage" and 
-                    isinstance(entry.get("data"), dict) and
-                    entry["data"].get("status") == "pending"):
-                    has_pending = True
-                    logger.info(f"Found pending message: {entry}")
-                    break
-                else:
-                    logger.info(f"Entry did not match pending criteria: {entry}")
+            # Get the last message
+            last_message = chat_history[-1]
+            last_msg_data = last_message.get("data", {})
+            last_msg_time = datetime.fromisoformat(last_message.get("timestamp", "").replace("Z", "+00:00"))
+            now = datetime.now(last_msg_time.tzinfo)
             
-            if has_pending:
-                # If there are pending messages, increase priority of ReplyToChatActivity
-                logger.info("Found pending messages")
-                return ActivityResult.success_result({"pending_messages": True})
-            else:
-                logger.info("No pending messages found")
-                return ActivityResult.success_result({"pending_messages": False})
+            # Check if there's recent activity (within last 5 minutes)
+            is_recent = (now - last_msg_time) <= timedelta(minutes=5)
+            
+            # Check if last message was from user
+            is_last_from_user = last_msg_data.get("sender", "").lower() == "user"
+            
+            # Enable chat activity if:
+            # 1. There's recent activity AND
+            # 2. The last message was from a user
+            should_enable = is_recent and is_last_from_user
+            
+            being.configs["activity_constraints"]["activities_config"]["ReplyToChatActivity"]["enabled"] = should_enable
+            
+            status_info = {
+                "active": should_enable,
+                "last_message_age_seconds": (now - last_msg_time).total_seconds(),
+                "last_message_from": last_msg_data.get("sender", "unknown"),
+                "reason": "recent_user_message" if should_enable else (
+                    "too_old" if not is_recent else "last_from_being"
+                )
+            }
+            
+            logger.info(f"Chat activity status: {status_info}")
+            return ActivityResult.success_result(status_info)
             
         except Exception as e:
             logger.error(f"Error in CheckPendingMessagesActivity: {e}", exc_info=True)
-            return ActivityResult.error_result(str(e)) 
+            return ActivityResult.error_result(str(e))

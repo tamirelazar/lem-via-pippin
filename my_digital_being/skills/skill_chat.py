@@ -23,12 +23,12 @@ class ChatSkill:
         We'll use skill_name = "lite_llm" and required_api_keys = ["LITELLM"].
         That means the key is stored under "LITE_LLM_LITELLM_API_KEY".
         """
-        self.skill_name = "lite_llm"
+        self.skill_name = "default_llm_skill"
         self.required_api_keys = ["LITELLM"]
         api_manager.register_required_keys(self.skill_name, self.required_api_keys)
 
         self._initialized = False
-        self.model_name: Optional[str] = "anthropic/claude-3-5-haiku-20240620"
+        self.model_name: Optional[str] = "anthropic/claude-3-5-haiku-20241022"
         self._provided_api_key: Optional[str] = None
 
     async def initialize(self) -> bool:
@@ -44,7 +44,7 @@ class ChatSkill:
             skill_cfg = being.configs.get("skills_config", {}).get("lite_llm", {})
 
             # e.g. "openai/gpt-4", "anthropic/claude-2", etc.
-            self.model_name = skill_cfg.get("model_name", "ollama_chat/llama3.2")
+            self.model_name = skill_cfg.get("model_name", "anthropic/claude-3-5-haiku-20241022")
             logger.info(f"LiteLLM skill using model = {self.model_name}")
 
             # Retrieve the user's key from secret manager
@@ -92,7 +92,7 @@ class ChatSkill:
                 messages=messages,
                 max_tokens=max_tokens,
                 temperature=0.7,
-                #api_key=self._provided_api_key,  # <--- important
+                api_key=self._provided_api_key,  # <--- important
             )
 
             choices = response.get("choices", [])

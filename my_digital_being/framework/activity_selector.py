@@ -26,6 +26,28 @@ class ActivitySelector:
         # The loader is not set until set_activity_loader() is called
         self.activity_loader = None
 
+    def get_activity_class(self, activity_key: str):
+        """
+        Get an activity class by its module name (e.g. 'activity_draw') or class name (e.g. 'DrawActivity').
+        Returns None if not found.
+        """
+        if not self.activity_loader:
+            logger.error("Activity loader not set; cannot get activity class.")
+            return None
+
+        # First try to get it directly by module name
+        activity_class = self.activity_loader.get_activity(activity_key)
+        if activity_class:
+            return activity_class
+
+        # If not found, try to find it by class name
+        all_activities = self.activity_loader.get_all_activities()
+        for module_name, cls in all_activities.items():
+            if cls.__name__ == activity_key:
+                return cls
+
+        return None
+
     def set_activity_loader(self, loader):
         """
         Attach an ActivityLoader instance to this ActivitySelector.
