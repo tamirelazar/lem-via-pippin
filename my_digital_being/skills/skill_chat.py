@@ -23,7 +23,7 @@ class ChatSkill:
         We'll use skill_name = "lite_llm" and required_api_keys = ["LITELLM"].
         That means the key is stored under "LITE_LLM_LITELLM_API_KEY".
         """
-        self.skill_name = "default_llm_skill"
+        self.skill_name = "lite_llm"
         self.required_api_keys = ["LITELLM"]
         api_manager.register_required_keys(self.skill_name, self.required_api_keys)
 
