@@ -24,18 +24,27 @@ class CheckPendingMessagesActivity(ActivityBase):
             # Initialize the being and get recent activities
             being = DigitalBeing()
             being.initialize()
+            logger.info(f"Memory contents: {being.memory.short_term_memory}")  # Log raw memory
+            
             all_entries = being.memory.get_recent_activities(limit=20)
             logger.info(f"Found {len(all_entries)} recent entries to check")
+            logger.info(f"Entries after get_recent_activities: {all_entries}")  # Log transformed entries
+            
+            # Debug log the entries
+            for entry in all_entries:
+                logger.info(f"Entry: {entry}")
             
             # Look for pending messages
             has_pending = False
             for entry in reversed(all_entries):
                 if (entry["activity_type"] == "UserChatMessage" and 
-                    isinstance(entry.get("result", {}).get("data"), dict) and
-                    entry["result"]["data"].get("status") == "pending"):
+                    isinstance(entry.get("data"), dict) and
+                    entry["data"].get("status") == "pending"):
                     has_pending = True
                     logger.info(f"Found pending message: {entry}")
                     break
+                else:
+                    logger.info(f"Entry did not match pending criteria: {entry}")
             
             if has_pending:
                 # If there are pending messages, increase priority of ReplyToChatActivity

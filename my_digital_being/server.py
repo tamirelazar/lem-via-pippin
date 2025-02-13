@@ -720,7 +720,7 @@ class DigitalBeingServer:
                         "result": {
                             "success": True,
                             "data": {
-                                "sender": "User", 
+                                "sender": "User",
                                 "message": user_message,
                                 "status": "pending"
                             }

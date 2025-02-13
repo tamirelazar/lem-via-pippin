@@ -21,3 +21,12 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["my_digital_being*"]
+
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "."
+]
