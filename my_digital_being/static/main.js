@@ -25,6 +25,8 @@ let isRawCodeMode = false;
 
 // Chat functionality
 let isLoadingChat = false;
+let chatRefreshInterval = null;
+const CHAT_REFRESH_INTERVAL = 5000; // Refresh every 5 seconds
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, connecting WebSocket...');
@@ -54,13 +56,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load chat history when switching to chat tab
   document.querySelector('[data-tab="chat"]').addEventListener('click', () => {
     showTab('chat');
-    loadChatHistory();
+    startChatRefresh();
   });
 
   // Load chat history on initial page load if we're on the chat tab
   const currentTab = document.querySelector('.tab-content.active');
   if (currentTab && currentTab.id === 'chat-tab') {
-    loadChatHistory();
+    startChatRefresh();
   }
 });
 
@@ -84,6 +86,13 @@ function showTab(tabName) {
     // If user clicked 'History' tab, reload the history
     if (tabName === 'history') {
       reloadHistory();
+    }
+    
+    // Start or stop chat refresh based on tab
+    if (tabName === 'chat') {
+      startChatRefresh();
+    } else {
+      stopChatRefresh();
     }
   }
 }
@@ -193,7 +202,11 @@ function connect() {
         const messageData = data.data || {};
         if (messageData.sender && messageData.message) {
           const isUser = messageData.sender.toLowerCase().includes('user');
-          addChatMessage(messageData.message, isUser ? 'user' : 'bot');
+          const isBot = messageData.sender.toLowerCase().includes('digital being');
+          const messageType = isUser ? 'user' : (isBot ? 'bot' : 'unknown');
+          if (messageType !== 'unknown') {
+            addChatMessage(messageData.message, messageType, false); // Don't auto-scroll
+          }
         }
       }
     } catch (e) {
@@ -1534,36 +1547,83 @@ function displayAllSkills(skills) {
   container.innerHTML = html;
 }
 
+// Function to start periodic chat refresh
+function startChatRefresh() {
+  loadChatHistory(); // Load immediately
+  if (!chatRefreshInterval) {
+    chatRefreshInterval = setInterval(loadChatHistory, CHAT_REFRESH_INTERVAL);
+  }
+}
+
+// Function to stop periodic chat refresh
+function stopChatRefresh() {
+  if (chatRefreshInterval) {
+    clearInterval(chatRefreshInterval);
+    chatRefreshInterval = null;
+  }
+}
+
 async function loadChatHistory() {
+  if (isLoadingChat) return; // Prevent multiple simultaneous loads
+  
   try {
+    isLoadingChat = true;
     const response = await sendCommand('get_chat_history');
     if (response.success && response.chat_history) {
       const messagesDiv = document.getElementById('chat-messages');
-      messagesDiv.innerHTML = ''; // Clear existing messages
+      if (!messagesDiv) return;
+      
+      // Get current scroll position and check if we're at the bottom
+      const wasAtBottom = messagesDiv.scrollHeight - messagesDiv.scrollTop <= messagesDiv.clientHeight + 1;
+      
+      // Store current messages count
+      const oldMessageCount = messagesDiv.children.length;
       
       // Sort messages by timestamp to ensure chronological order
       const sortedMessages = response.chat_history.sort((a, b) => {
         return new Date(a.timestamp) - new Date(b.timestamp);
       });
       
-      sortedMessages.forEach(entry => {
-        const data = entry.data || {};
-        if (data.sender && data.message) {
-          const isUser = data.sender.toLowerCase().includes('user');
-          const messageType = isUser ? 'user' : 'bot';
-          addChatMessage(data.message, messageType);
+      // Only update if we have new messages
+      if (sortedMessages.length !== oldMessageCount) {
+        messagesDiv.innerHTML = ''; // Clear existing messages
+        sortedMessages.forEach(entry => {
+          // Messages are stored directly in the entry, not in a data field
+          if (entry.sender && entry.message) {
+            // More flexible bot detection
+            const senderLower = entry.sender.toLowerCase();
+            const isUser = senderLower.includes('user');
+            const isBot = senderLower.includes('digital_being') || 
+                         senderLower.includes('assistant') || 
+                         senderLower.includes('bot') ||
+                         senderLower.includes('claude');
+            const messageType = isUser ? 'user' : (isBot ? 'bot' : 'unknown');
+            
+            // Log unknown message types to help debug
+            if (messageType === 'unknown') {
+              console.log('Unknown message type:', entry);
+            }
+            
+            if (messageType !== 'unknown') {
+              addChatMessage(entry.message, messageType, false);
+            }
+          }
+        });
+        
+        // Only scroll to bottom if we were already at the bottom or this is the initial load
+        if (wasAtBottom || oldMessageCount === 0) {
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
-      });
-      
-      // Scroll to bottom after loading history
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
     }
   } catch (error) {
     console.error('Failed to load chat history:', error);
+  } finally {
+    isLoadingChat = false;
   }
 }
 
-function addChatMessage(message, type) {
+function addChatMessage(message, type, shouldScroll = true) {
   const messagesDiv = document.getElementById('chat-messages');
   const messageElement = document.createElement('div');
   messageElement.classList.add('chat-message');
@@ -1583,7 +1643,11 @@ function addChatMessage(message, type) {
   messageElement.appendChild(textNode);
   
   messagesDiv.appendChild(messageElement);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  
+  // Only scroll if requested (default true)
+  if (shouldScroll) {
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
 }
 
 async function sendChatMessage() {

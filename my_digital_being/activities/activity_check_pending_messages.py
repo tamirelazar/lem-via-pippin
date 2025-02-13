@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 @activity(
     name="CheckPendingMessages",
     energy_cost=0.3,
-    cooldown=2,  # Check every 2 seconds
+    cooldown=60,  # Check every 2 seconds
     required_skills=[]  # No specific skills required for checking
 )
 class CheckPendingMessagesActivity(ActivityBase):
@@ -36,7 +36,9 @@ class CheckPendingMessagesActivity(ActivityBase):
             
             # Get the last message
             last_message = chat_history[-1]
-            last_msg_data = last_message.get("data", {})
+            
+            # Get sender directly from message since it's not wrapped in data field
+            last_msg_sender = last_message.get("sender", "")
             last_msg_time = datetime.fromisoformat(last_message.get("timestamp", "").replace("Z", "+00:00"))
             now = datetime.now(last_msg_time.tzinfo)
             
@@ -44,7 +46,7 @@ class CheckPendingMessagesActivity(ActivityBase):
             is_recent = (now - last_msg_time) <= timedelta(minutes=5)
             
             # Check if last message was from user
-            is_last_from_user = last_msg_data.get("sender", "").lower() == "user"
+            is_last_from_user = last_msg_sender.lower() == "user"
             
             # Enable chat activity if:
             # 1. There's recent activity AND
@@ -56,7 +58,7 @@ class CheckPendingMessagesActivity(ActivityBase):
             status_info = {
                 "active": should_enable,
                 "last_message_age_seconds": (now - last_msg_time).total_seconds(),
-                "last_message_from": last_msg_data.get("sender", "unknown"),
+                "last_message_from": last_msg_sender,
                 "reason": "recent_user_message" if should_enable else (
                     "too_old" if not is_recent else "last_from_being"
                 )

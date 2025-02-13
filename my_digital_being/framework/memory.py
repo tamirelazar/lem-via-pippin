@@ -15,12 +15,14 @@ class Memory:
         self.storage_path.mkdir(exist_ok=True)
         self.short_term_memory: List[Dict[str, Any]] = []
         self.long_term_memory: Dict[str, Any] = {}
+        self.chat_log: List[Dict[str, Any]] = []  # New dedicated chat log
         self.memory_file = self.storage_path / "memory.json"
         self.initialize()
 
     def initialize(self):
         """Initialize memory system."""
         self._load_memory()
+        # self.sync_chat_log()  # Add sync_chat_log call after loading memory
 
     def _load_memory(self):
         """Load memory from persistent storage."""
@@ -32,12 +34,14 @@ class Memory:
                         if isinstance(data, dict):
                             self.long_term_memory = data.get("long_term", {})
                             self.short_term_memory = data.get("short_term", [])
+                            self.chat_log = data.get("chat_log", [])  # Load chat log
                         else:
                             logger.warning(
                                 "Invalid memory file format, resetting memory"
                             )
                             self.long_term_memory = {}
                             self.short_term_memory = []
+                            self.chat_log = []
                             self.persist()  # Reset the file with proper format
                     except json.JSONDecodeError as je:
                         logger.error(f"Failed to parse memory file: {je}")
@@ -48,11 +52,13 @@ class Memory:
                         # Reset memory
                         self.long_term_memory = {}
                         self.short_term_memory = []
+                        self.chat_log = []
                         self.persist()  # Create new file with proper format
         except Exception as e:
             logger.error(f"Failed to load memory: {e}")
             self.long_term_memory = {}
             self.short_term_memory = []
+            self.chat_log = []
 
     def store_activity_result(self, activity_record: Dict[str, Any]):
         """Store the result of an activity in memory."""
@@ -66,14 +72,33 @@ class Memory:
             result = activity_record.get("result", {})
             if isinstance(result, dict):
                 # Store standardized activity record with UTC timestamp
+                timestamp = datetime.now(timezone.utc).isoformat()
+                activity_type = activity_record.get("activity_type", "Unknown")
+                
+                # Check if this is a chat message activity before creating memory entry
+                if activity_type in ["UserChatMessage", "ReplyToChatActivity"] and result.get("data"):
+                    chat_data = result["data"]
+                    # Create chat entry format
+                    chat_entry = {
+                        "timestamp": timestamp,
+                        "sender": chat_data.get("sender", "unknown"),
+                        "message": chat_data.get("message", ""),
+                        "activity_type": "chat_message"
+                    }
+                    # Add to chat log
+                    self.chat_log.append(chat_entry)
+                    logger.info(f"Added chat message to chat log from {chat_entry['sender']}")
+                
+                # Create and store the activity record
                 memory_entry = {
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "activity_type": activity_record.get("activity_type", "Unknown"),
+                    "timestamp": timestamp,
+                    "activity_type": activity_type,
                     "success": result.get("success", False),
                     "error": result.get("error"),
                     "data": result.get("data"),
                     "metadata": result.get("metadata", {}),
                 }
+                
                 self.short_term_memory.append(memory_entry)
                 self._consolidate_memory()
                 self.persist()  # Persist after each update
@@ -147,6 +172,7 @@ class Memory:
             memory_data = {
                 "short_term": self.short_term_memory,
                 "long_term": self.long_term_memory,
+                "chat_log": self.chat_log,  # Include chat log in persistence
             }
 
             # Write to a temporary file first
@@ -164,6 +190,7 @@ class Memory:
         """Clear all memory."""
         self.short_term_memory = []
         self.long_term_memory = {}
+        self.chat_log = []  # Clear chat log
         self.persist()
 
     def get_activity_count(self) -> int:
@@ -182,19 +209,115 @@ class Memory:
 
     def add_chat_message(self, message: dict) -> None:
         """
-        Add a chat message to the short-term memory log.
-        The message dict should include:
-          - "activity_type": a marker (e.g. "chat_message")
+        Add a chat message to the chat log.
+        The message dict can be either:
+        1. A direct message format:
           - "sender": "user" or "digital_being"
           - "message": the text
           - "timestamp": ISO timestamp string
+        2. An activity format:
+          - "activity_type": "UserChatMessage"
+          - "timestamp": ISO timestamp string
+          - "data": {
+              "sender": "user" or "digital_being"
+              "message": the text
+            }
         """
-        self.short_term_memory.append(message)
+        # Extract message data based on format
+        if "data" in message and "activity_type" in message:
+            # Activity format
+            chat_entry = {
+                "timestamp": message.get("timestamp", datetime.now(timezone.utc).isoformat()),
+                "sender": message["data"].get("sender", "unknown"),
+                "message": message["data"].get("message", ""),
+                "activity_type": "chat_message"
+            }
+        else:
+            # Direct format
+            chat_entry = {
+                "timestamp": message.get("timestamp", datetime.now(timezone.utc).isoformat()),
+                "sender": message["sender"],
+                "message": message["message"],
+                "activity_type": "chat_message"
+            }
+        
+        # Add to chat log
+        self.chat_log.append(chat_entry)
+        
+        # Also maintain backward compatibility by adding to short-term memory if not already an activity
+        if "activity_type" not in message:
+            activity_entry = {
+                "timestamp": chat_entry["timestamp"],
+                "activity_type": "UserChatMessage",
+                "success": True,
+                "error": None,
+                "data": {
+                    "sender": chat_entry["sender"],
+                    "message": chat_entry["message"],
+                    "status": "pending"
+                },
+                "metadata": {}
+            }
+            self.short_term_memory.append(activity_entry)
+        else:
+            self.short_term_memory.append(message)
+        
         self.persist()
 
     def get_chat_history(self, limit: int = 50) -> list:
         """
-        Retrieve up to the latest `limit` chat messages from memory that are tagged as chat messages.
+        Retrieve up to the latest `limit` chat messages from the chat log.
         """
-        messages = [m for m in self.short_term_memory if m.get("activity_type") == "chat_message"]
-        return messages[-limit:]
+        return self.chat_log[-limit:]
+
+    def sync_chat_log(self):
+        """Synchronize chat messages from activities into chat_log."""
+        try:
+            # Create a set of existing chat message timestamps for efficient lookup
+            existing_timestamps = {entry["timestamp"] for entry in self.chat_log}
+            
+            # Helper function to process activities
+            def process_activities(activities):
+                for activity in activities:
+                    # Skip if activity timestamp already exists in chat_log
+                    if activity["timestamp"] in existing_timestamps:
+                        continue
+                        
+                    # Check for chat-related activity types
+                    if activity["activity_type"] in ["UserChatMessage", "ReplyToChatActivity"]:
+                        if activity.get("data") and activity["success"]:
+                            if activity["data"].get("sender") == "user":
+                                chat_entry = {
+                                    "timestamp": activity["timestamp"],
+                                    "sender": activity["data"].get("sender", ""),
+                                    "message": activity["data"].get("message", ""),
+                                    "activity_type": "chat_message"
+                                }
+                            elif activity["data"].get("sender") == "digital_being" or activity["data"].get("chat_response"):
+                                chat_entry = {
+                                    "timestamp": activity["timestamp"],
+                                    "sender": activity["data"].get("digital_being", ""),
+                                    "message": activity["data"].get("chat_response", ""),
+                                    "activity_type": "chat_message"
+                                }
+                            self.chat_log.append(chat_entry)
+                            existing_timestamps.add(activity["timestamp"])
+                            logger.info(f"Synced chat message from {chat_entry['sender']}")
+            
+            # Process short-term memory
+            process_activities(self.short_term_memory)
+            
+            # Process long-term memory
+            for activity_type, activities in self.long_term_memory.items():
+                if activity_type in ["UserChatMessage", "ReplyToChatActivity"]:
+                    process_activities(activities)
+            
+            # Sort chat log by timestamp
+            self.chat_log.sort(key=lambda x: x["timestamp"])
+            
+            # Persist changes
+            self.persist()
+            logger.info("Chat log synchronization completed")
+            
+        except Exception as e:
+            logger.error(f"Failed to synchronize chat log: {e}")

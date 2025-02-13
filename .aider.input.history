@@ -1,0 +1,60 @@
+
+# 2025-02-12 17:54:28.314282
++y
+
+# 2025-02-12 18:01:06.905379
++/architect i want to change the chat window behaviour. right now a user message triggers a chat completion right away; i would like to disconnect the two stages, so that a new message will be registered to memory regularly with an additional 'pending' attribute, and 2 new activities 'check_pending' and 'answer_message' will be implemented to integrate the chat into the overall activity selection process. help me plan this change
+
+# 2025-02-12 18:20:47.133355
++Y
+
+# 2025-02-12 18:20:51.758047
++A
+
+# 2025-02-12 18:23:31.619331
++/git
+
+# 2025-02-12 18:23:38.147779
++/git status
+
+# 2025-02-12 18:24:57.854022
++make the changes you suggested to the chat message handling
+
+# 2025-02-12 18:26:57.912369
++/drop my_digital_being/server.py my_digital_being/static/main.js
+
+# 2025-02-12 18:27:38.737357
++start editing the memory file to include the pending message status and the get pending messages, as you suggested 
+
+# 2025-02-12 18:50:21.522933
++/ask how can i run activities manually? i think there might be a websocket way to do it, or something else
+
+# 2025-02-12 19:06:28.504289
++/drop my_digital_being/static/main.js
+
+# 2025-02-12 19:06:37.207375
++add my_digital_being/framework/memory.py
+
+# 2025-02-12 19:06:41.665950
++y
+
+# 2025-02-14 00:08:33.847791
++/exit
+
+# 2025-02-14 00:09:17.010180
++n
+
+# 2025-02-14 00:09:25.652763
++/exit
+
+# 2025-02-14 00:15:01.725403
++/drop my_digital_being/activities/activity_test.py my_digital_being/framework/main.py
+
+# 2025-02-14 00:15:46.101022
++/add my_digital_being/framework/memory.py
+
+# 2025-02-14 00:19:18.969620
++/ask explain how the memory system works and point out weak points that require handling. for each point assess criticality of issue and likely path to solution.
+
+# 2025-02-14 00:36:27.618632
++/exit
