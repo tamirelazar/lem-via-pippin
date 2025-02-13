@@ -26,38 +26,6 @@ let isRawCodeMode = false;
 // Chat functionality
 let isLoadingChat = false;
 
-// Add CSS styles at the top of the file
-const style = document.createElement('style');
-style.textContent = `
-  .chat-message {
-    padding: 8px 12px;
-    margin: 4px 0;
-    border-radius: 8px;
-    max-width: 80%;
-    word-wrap: break-word;
-  }
-  
-  .user-message {
-    background-color: var(--primary-color);
-    color: white;
-    margin-left: auto;
-  }
-  
-  .bot-message {
-    background-color: var(--card-bg);
-    color: var(--text-primary);
-    margin-right: auto;
-  }
-  
-  .pending-message {
-    background-color: var(--warning-color);
-    opacity: 0.8;
-    color: var(--text-primary);
-    margin-left: auto;
-  }
-`;
-document.head.appendChild(style);
-
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, connecting WebSocket...');
   connect();
@@ -1487,68 +1455,6 @@ function showApiKeyForm(appName, keyDetails) {
     }
   };
 }
-
-const style = document.createElement('style');
-style.textContent = `
-  .api-key-details {
-    margin-bottom: 20px;
-  }
-  .api-key-details h4 {
-    margin: 0 0 10px 0;
-    color: var(--primary-color);
-  }
-  .api-key-details .description {
-    margin: 0 0 15px 0;
-    color: var(--text-secondary);
-  }
-  .field-group {
-    margin-bottom: 15px;
-  }
-  .field-group label {
-    display: block;
-    margin-bottom: 5px;
-    color: var(--text-primary);
-  }
-  .field-group input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: var(--input-bg);
-    color: var(--text-primary);
-  }
-  .field-description {
-    margin: 5px 0 0 0;
-    font-size: 0.9em;
-    color: var(--text-secondary);
-  }
-  .validation-message {
-    margin-top: 10px;
-    padding: 8px;
-    border-radius: 4px;
-    font-size: 0.9em;
-  }
-  .validation-message.error {
-    background: var(--error-bg);
-    color: var(--error-color);
-  }
-  .validation-message.warning {
-    background: var(--warning-bg);
-    color: var(--warning-color);
-  }
-  .validation-message.success {
-    background: var(--success-bg);
-    color: var(--success-color);
-  }
-  .auth-methods {
-    display: flex;
-    gap: 8px;
-  }
-  .auth-methods button {
-    white-space: nowrap;
-  }
-`;
-document.head.appendChild(style);
 
 async function testGetActionsForTwitter() {
   try {
